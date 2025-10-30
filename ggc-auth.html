@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connect Wallet - Grand Gangsta City</title>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.12.1/dist/ethers.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+            color: #fff;
+        }
+
+        /* Background Image */
+        .background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('BG.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            filter: brightness(0.4) blur(2px);
+            z-index: 0;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.7) 0%, rgba(20, 20, 40, 0.8) 100%);
+            z-index: 1;
+        }
+
+        /* Navbar */
+        .navbar {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 40px;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            border-bottom: 2px solid rgba(255, 215, 0, 0.3);
+        }
+
+        .logo {
+            height: 50px;
+            width: auto;
+        }
+
+        .logo img {
+            height: 100%;
+            width: auto;
+            object-fit: contain;
+        }
+
+        .wallet-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        /* Wallet dropdown */
+        .wallet-dropdown {
+            position: relative;
+        }
+        .wallet-menu {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: calc(100% + 8px);
+            background: rgba(0,0,0,0.9);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 8px;
+            min-width: 180px;
+            z-index: 20;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+        }
+        .wallet-menu.show { display: block; }
+        .wallet-menu button {
+            width: 100%;
+            text-align: left;
+            padding: 10px 14px;
+            background: transparent;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+        }
+        .wallet-menu button:hover {
+            background: rgba(212, 175, 55, 0.12);
+        }
+
+        .wallet-address {
+            font-size: 14px;
+            color: #d4af37;
+            font-family: 'Courier New', monospace;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 8px 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(212, 175, 55, 0.3);
+        }
+
+        /* Main Content */
+        .container {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: calc(100vh - 90px);
+            padding: 40px;
+        }
+
+        .auth-card {
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(20px);
+            border: 2px solid rgba(212, 175, 55, 0.4);
+            border-radius: 20px;
+            padding: 60px 50px;
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(212, 175, 55, 0.1);
+        }
+
+        .auth-card h1 {
+            font-size: 32px;
+            margin-bottom: 15px;
+            color: #d4af37;
+            text-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+            letter-spacing: 2px;
+        }
+
+        .auth-card p {
+            font-size: 16px;
+            color: #bbb;
+            margin-bottom: 40px;
+            line-height: 1.6;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 16px 40px;
+            font-size: 18px;
+            font-weight: bold;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #d4af37 0%, #f4d03f 100%);
+            color: #000;
+            box-shadow: 0 8px 20px rgba(212, 175, 55, 0.4);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(212, 175, 55, 0.6);
+        }
+
+        .btn-primary:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .btn-primary:disabled {
+            background: #555;
+            color: #888;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .btn-connect {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            color: #fff;
+            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-connect:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(59, 130, 246, 0.6);
+        }
+
+        /* Success State */
+        .success-state {
+            display: none;
+        }
+
+        .success-state.active {
+            display: block;
+        }
+
+        .auth-state.active {
+            display: block;
+        }
+
+        .success-icon {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 30px;
+            position: relative;
+        }
+
+        .success-tick {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 30px rgba(16, 185, 129, 0.6);
+            animation: scaleIn 0.5s ease;
+        }
+
+        .success-tick::after {
+            content: '✓';
+            font-size: 60px;
+            color: #fff;
+            font-weight: bold;
+        }
+
+        @keyframes scaleIn {
+            from {
+                transform: scale(0);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .success-logo {
+            width: 150px;
+            height: auto;
+            margin: 30px auto;
+            display: block;
+        }
+
+        .success-message {
+            font-size: 24px;
+            color: #d4af37;
+            margin: 30px 0;
+            font-weight: bold;
+        }
+
+        .success-submessage {
+            font-size: 16px;
+            color: #bbb;
+            margin-bottom: 40px;
+        }
+
+        /* Loading State */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Status Messages */
+        .status-message {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .status-message.show {
+            display: block;
+        }
+
+        .status-message.error {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.5);
+            color: #fca5a5;
+        }
+
+        .status-message.info {
+            background: rgba(59, 130, 246, 0.2);
+            border: 1px solid rgba(59, 130, 246, 0.5);
+            color: #93c5fd;
+        }
+    </style>
+</head>
+<body>
+    <div class="background"></div>
+    <div class="overlay"></div>
+
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="logo">
+            <img src="GGClogo.png" alt="Grand Gangsta City Logo">
+        </div>
+        <div class="wallet-info">
+            <div class="wallet-dropdown">
+                <div id="walletAddress" class="wallet-address" style="display: none; cursor: pointer;"></div>
+                <div id="walletMenu" class="wallet-menu">
+                    <button id="disconnectBtn">Disconnect wallet</button>
+                </div>
+            </div>
+            <button id="connectWalletBtn" class="btn btn-connect">Connect Wallet</button>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="container">
+        <div class="auth-card">
+            <!-- Auth State -->
+            <div class="auth-state active" id="authState">
+                <h1>Welcome to Grand Gangsta City</h1>
+                <p id="authDescription">Connect your wallet and sign in to start playing. Your device will be linked to your wallet address after authentication.</p>
+                
+                <button id="signInBtn" class="btn btn-primary" disabled>
+                    Sign In
+                </button>
+
+                <div id="statusMessage" class="status-message"></div>
+            </div>
+
+            <!-- Success State -->
+            <div class="success-state" id="successState">
+                <div class="success-icon">
+                    <div class="success-tick"></div>
+                </div>
+                
+                <img src="GGClogo.png" alt="Grand Gangsta City Logo" class="success-logo">
+                
+                <div class="success-message">Wallet Connected Successfully!</div>
+                <div class="success-submessage">You can now close this window and return to the game.</div>
+                
+                <button class="btn btn-primary" onclick="safeClose()">Close Window</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const $ = (id) => document.getElementById(id);
+        let provider = null;
+        let signer = null;
+        let address = null;
+        let deviceId = null;
+        let apiBase = window.location.hostname === 'new-chairs-roll.loca.lt' 
+            ? 'https://42d2806da283.ngrok-free.app' 
+            : 'https://api.ggc.game';
+
+        // Extract device ID from URL
+        function getDeviceIdFromUrl() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('deviceId') || urlParams.get('device_id') || urlParams.get('id');
+        }
+
+        // Build SIWE message
+        function buildSiweMessage({ domain, address, statement, uri, version, chainId, nonce }) {
+            return `${domain} wants you to sign in with your Ethereum account:
+${address}
+
+${statement}
+
+URI: ${uri}
+Version: ${version}
+Chain ID: ${chainId}
+Nonce: ${nonce}
+Issued At: ${new Date().toISOString()}`;
+        }
+
+        // Get chain ID
+        async function getChainIdNumber() {
+            if (!provider) return 1;
+            const chainIdHex = await provider.send('eth_chainId', []);
+            return parseInt(chainIdHex, 16);
+        }
+
+        // Show status message
+        function showStatus(message, type = 'info') {
+            const statusEl = $('statusMessage');
+            statusEl.textContent = message;
+            statusEl.className = `status-message ${type} show`;
+            setTimeout(() => {
+                statusEl.classList.remove('show');
+            }, 5000);
+        }
+
+        // Friendly error mapper for wallet/tx rejections
+        function getFriendlyError(err) {
+            const code = err && err.code;
+            const msg = (err && err.message ? String(err.message) : String(err || '')).toLowerCase();
+            if (code === 4001 ||
+                msg.includes('user rejected') ||
+                msg.includes('rejected the request') ||
+                msg.includes('transaction rejected') ||
+                msg.includes('user denied')) {
+                return 'Transaction rejected';
+            }
+            if (msg.includes('metamask not detected')) return 'MetaMask not detected';
+            return 'Something went wrong';
+        }
+
+        // Attempt to close tab safely (only works if opened by script)
+        function safeClose() {
+            try {
+                if (window.opener) {
+                    window.close();
+                    return;
+                }
+                window.close();
+                const w = window.open('', '_self');
+                if (w) w.close();
+            } catch (_) {}
+            // Fallback: try going back, else inform user to close manually
+            if (history.length > 1) {
+                history.back();
+            } else {
+                showStatus('Please close this tab.', 'info');
+            }
+        }
+
+        // Check if current address already signed in (device linked to this address)
+        async function refreshStatusUI() {
+            try {
+                if (!deviceId || !address) return;
+                const res = await fetch(`${apiBase}/api/v1/device/status`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ deviceId })
+                });
+                const json = await res.json();
+                if (res.ok && json?.success && json?.data?.linked) {
+                    const linkedAddr = json.data.walletAddress || '';
+                    if (linkedAddr && address && linkedAddr.toLowerCase() === address.toLowerCase()) {
+                        const btn = $('signInBtn');
+                        if (btn) {
+                            btn.disabled = true;
+                            btn.innerHTML = 'Already signed in';
+                        }
+                        const desc = $('authDescription');
+                        if (desc) desc.textContent = 'You have already signed in.';
+                        showStatus('You have already signed in.', 'info');
+                    }
+                }
+            } catch (_) {
+                // ignore status errors, keep default UI
+            }
+        }
+
+        // Connect Wallet
+        $('connectWalletBtn').onclick = async () => {
+            try {
+                if (!window.ethereum) {
+                    showStatus('MetaMask not detected. Please install MetaMask.', 'error');
+                    return;
+                }
+
+                provider = new ethers.BrowserProvider(window.ethereum);
+                await provider.send('eth_requestAccounts', []);
+                signer = await provider.getSigner();
+                address = ethers.getAddress(await signer.getAddress());
+
+                // Update UI
+                $('walletAddress').textContent = `${address.slice(0, 6)}...${address.slice(-4)}`;
+                $('walletAddress').style.display = 'block';
+                $('connectWalletBtn').style.display = 'none';
+                $('signInBtn').disabled = false;
+
+                // Get device ID
+                deviceId = getDeviceIdFromUrl();
+                if (deviceId) {
+                    showStatus('Device ID detected. Ready to sign in.', 'info');
+                    // If already linked to this address, gray out sign in
+                    refreshStatusUI();
+                }
+            } catch (error) {
+                showStatus(getFriendlyError(error), 'error');
+            }
+        };
+
+        // Toggle wallet menu
+        $('walletAddress').addEventListener('click', (e) => {
+            e.stopPropagation();
+            const menu = $('walletMenu');
+            menu.classList.toggle('show');
+        });
+
+        // Close menu on outside click
+        document.addEventListener('click', () => {
+            $('walletMenu').classList.remove('show');
+        });
+
+        // Disconnect wallet (UI-level reset)
+        $('disconnectBtn').addEventListener('click', async (e) => {
+            e.stopPropagation();
+            try {
+                // Clear local UI state
+                address = null;
+                $('walletMenu').classList.remove('show');
+                $('walletAddress').style.display = 'none';
+                $('connectWalletBtn').style.display = 'block';
+                $('signInBtn').disabled = true;
+                showStatus('Wallet disconnected for this session.', 'info');
+            } catch (err) {
+                showStatus('Failed to disconnect wallet: ' + (err.message || err), 'error');
+            }
+        });
+
+        // Sign In
+        $('signInBtn').onclick = async () => {
+            try {
+                if (!address || !signer) {
+                    showStatus('Please connect your wallet first.', 'error');
+                    return;
+                }
+
+                $('signInBtn').disabled = true;
+                $('signInBtn').innerHTML = 'Signing In<span class="loading"></span>';
+
+                const domain = window.location.host;
+                const uri = window.location.origin;
+                const statement = 'Sign in to Grand Gangsta City';
+                const chainId = await getChainIdNumber();
+
+                // Get nonce
+                const nonceRes = await fetch(`${apiBase}/api/v1/auth/nonce`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ address })
+                });
+
+                const nonceJson = await nonceRes.json();
+                if (!nonceRes.ok || !nonceJson?.success) {
+                    throw new Error('Failed to get nonce');
+                }
+
+                const nonce = nonceJson.data.nonce;
+
+                // Build message
+                const message = buildSiweMessage({
+                    domain,
+                    address,
+                    statement,
+                    uri,
+                    version: 1,
+                    chainId,
+                    nonce
+                });
+
+                // Sign message
+                const signature = await signer.signMessage(message);
+
+                // Verify
+                const verifyRes = await fetch(`${apiBase}/api/v1/auth/verify`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message, signature })
+                });
+
+                const verify = await verifyRes.json();
+
+                if (!verifyRes.ok || !verify?.success) {
+                    throw new Error(verify?.error?.message || 'Authentication failed');
+                }
+
+                // Auto-bind device if deviceId is present
+                if (deviceId && verify.data.accessToken) {
+                    try {
+                        await fetch(`${apiBase}/api/v1/device/bind`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${verify.data.accessToken}`
+                            },
+                            body: JSON.stringify({ deviceId })
+                        });
+                    } catch (bindError) {
+                        console.warn('Device binding failed:', bindError);
+                        // Don't fail the entire flow if binding fails
+                    }
+                }
+
+                // Show success state
+                const auth = $('authState');
+                const success = $('successState');
+                if (auth) auth.style.display = 'none';
+                if (success) success.style.display = 'block';
+
+            } catch (error) {
+                $('signInBtn').disabled = false;
+                $('signInBtn').innerHTML = 'Sign In';
+                showStatus(getFriendlyError(error), 'error');
+            }
+        };
+
+        // Check if wallet is already connected
+        window.addEventListener('DOMContentLoaded', async () => {
+            deviceId = getDeviceIdFromUrl();
+
+            if (window.ethereum) {
+                try {
+                    provider = new ethers.BrowserProvider(window.ethereum);
+                    const accounts = await provider.send('eth_accounts', []);
+                    
+                    if (accounts.length > 0) {
+                        signer = await provider.getSigner();
+                        address = ethers.getAddress(await signer.getAddress());
+                        
+                        $('walletAddress').textContent = `${address.slice(0, 6)}...${address.slice(-4)}`;
+                        $('walletAddress').style.display = 'block';
+                        $('connectWalletBtn').style.display = 'none';
+                        $('signInBtn').disabled = false;
+
+                        if (deviceId) {
+                            showStatus('Device ID detected. Ready to sign in.', 'info');
+                            refreshStatusUI();
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error checking wallet connection:', error);
+                }
+            }
+
+            // Handle account changes
+            if (window.ethereum) {
+                window.ethereum.on('accountsChanged', async () => {
+                    if (window.ethereum) {
+                        try {
+                            provider = new ethers.BrowserProvider(window.ethereum);
+                            const accounts = await provider.send('eth_requestAccounts', []);
+                            if (accounts.length === 0) {
+                                // User disconnected
+                                address = null;
+                                $('walletAddress').style.display = 'none';
+                                $('connectWalletBtn').style.display = 'block';
+                                $('signInBtn').disabled = true;
+                            } else {
+                                // Account changed
+                                signer = await provider.getSigner();
+                                address = ethers.getAddress(await signer.getAddress());
+                                $('walletAddress').textContent = `${address.slice(0, 6)}...${address.slice(-4)}`;
+                                $('walletAddress').style.display = 'block';
+                                $('connectWalletBtn').style.display = 'none';
+                                refreshStatusUI();
+                            }
+                        } catch (error) {
+                            console.error('Error handling account change:', error);
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
+
