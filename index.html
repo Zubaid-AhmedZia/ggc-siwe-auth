@@ -386,9 +386,13 @@
         let signer = null;
         let address = null;
         let deviceId = null;
-        let apiBase = window.location.hostname === 'ggc-auth.netlify.app' 
-            ? 'http://3.88.13.154:8080' 
-            : 'https://api.ggc.game';
+        // let apiBase = window.location.hostname === 'ggc-auth.netlify.app' 
+        //     ? 'http://3.88.13.154:8080' 
+        //     : 'https://api.ggc.game';
+        // On Netlify: use same-origin path (Netlify will proxy `/api/*` to your EC2).
+// Locally: talk to your local server directly.
+const IS_NETLIFY = window.location.hostname.endsWith('netlify.app');
+const apiBase = IS_NETLIFY ? '' : 'http://127.0.0.1:8080';
 
         // Extract device ID from URL
         function getDeviceIdFromUrl() {
