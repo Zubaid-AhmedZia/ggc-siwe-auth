@@ -391,8 +391,8 @@
         //     : 'https://api.ggc.game';
         // On Netlify: use same-origin path (Netlify will proxy `/api/*` to your EC2).
 // Locally: talk to your local server directly.
-const IS_NETLIFY = window.location.hostname.endsWith('netlify.app');
-const apiBase = IS_NETLIFY ? '' : 'http://127.0.0.1:8080';
+const IS_GGC = window.location.hostname.endsWith('grandgangstacity.com');
+const apiBase = IS_GGC ? '' : 'http://127.0.0.1:8080';
 
         // Extract device ID from URL
         function getDeviceIdFromUrl() {
