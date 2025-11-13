@@ -392,7 +392,9 @@
         // On Netlify: use same-origin path (Netlify will proxy `/api/*` to your EC2).
 // Locally: talk to your local server directly.
 const IS_GGC = window.location.hostname.endsWith('grandgangstacity.com');
-const apiBase = IS_GGC ? '' : 'http://127.0.0.1:8080';
+const apiBase = IS_GGC
+  ? 'https://api.grandgangstacity.com'  // prod
+  : 'http://127.0.0.1:8080';            // local dev
 
         // Extract device ID from URL
         function getDeviceIdFromUrl() {
