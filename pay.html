@@ -1,0 +1,427 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>GGC Payment</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      :root {
+        --bg: #0b0f16;
+        --card: #131a24;
+        --muted: #97a3b8;
+        --text: #f5f7fb;
+        --accent: #d6b25e;
+        --accent-strong: #f0c76a;
+        --danger: #ff6b6b;
+        --ok: #3ddc97;
+        --border: #253043;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+        background: radial-gradient(1200px 600px at 10% -10%, #1e2736 0%, transparent 60%),
+                    radial-gradient(900px 500px at 100% 0%, #141b27 0%, transparent 50%),
+                    var(--bg);
+        color: var(--text);
+      }
+      .shell {
+        max-width: 720px;
+        margin: 40px auto;
+        padding: 0 20px 40px;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 24px;
+      }
+      .title {
+        font-size: 28px;
+        letter-spacing: 1px;
+      }
+      .badge {
+        padding: 6px 10px;
+        border: 1px solid var(--border);
+        color: var(--muted);
+        border-radius: 999px;
+        font-size: 12px;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 18px;
+        margin-bottom: 16px;
+      }
+      .row {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        margin: 10px 0;
+      }
+      .label {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .value {
+        font-weight: 600;
+      }
+      .amount {
+        font-size: 28px;
+        font-weight: 700;
+        color: var(--accent-strong);
+      }
+      .muted {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      button {
+        background: var(--accent);
+        border: none;
+        color: #1a1a1a;
+        font-weight: 700;
+        padding: 12px 16px;
+        border-radius: 10px;
+        cursor: pointer;
+      }
+      button.secondary {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text);
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .status {
+        padding: 6px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+        display: inline-block;
+      }
+      .status.ok { background: rgba(61, 220, 151, 0.15); color: var(--ok); }
+      .status.warn { background: rgba(255, 199, 106, 0.15); color: var(--accent-strong); }
+      .status.bad { background: rgba(255, 107, 107, 0.15); color: var(--danger); }
+      .actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 12px;
+      }
+      .mono {
+        font-family: "Courier New", monospace;
+        font-size: 12px;
+        color: var(--muted);
+        word-break: break-all;
+      }
+      .modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(4, 6, 10, 0.72);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+      .modal-content {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 24px;
+        max-width: 420px;
+        text-align: center;
+      }
+      .modal-content h3 {
+        margin-top: 0;
+      }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.12.1/dist/ethers.umd.min.js"></script>
+  </head>
+  <body>
+    <div class="shell">
+      <header>
+        <div class="title">GGC Payment</div>
+        <div class="badge">secure token checkout</div>
+      </header>
+
+      <div class="card">
+        <div class="row">
+          <div>
+            <div class="label">Payment ID</div>
+            <div class="value mono" id="paymentIdValue">-</div>
+          </div>
+          <div>
+            <div class="label">Status</div>
+            <div id="statusBadge" class="status warn">Loading</div>
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <div class="label">Amount</div>
+            <div class="amount" id="amountValue">-</div>
+            <div class="muted" id="amountUsdValue"></div>
+          </div>
+          <div>
+            <div class="label">Expires</div>
+            <div class="value" id="expiresValue">-</div>
+            <div class="muted">Payment intent is time-limited.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="label">Wallet</div>
+        <div class="value" id="walletValue">Not connected</div>
+        <div class="muted" id="networkValue"></div>
+        <div class="actions">
+          <button id="connectBtn">Connect Wallet</button>
+          <button id="switchBtn" class="secondary" style="display:none;">Switch Network</button>
+          <button id="payBtn" disabled>Pay Now</button>
+        </div>
+        <div class="mono" id="txValue"></div>
+      </div>
+
+      <div class="card">
+        <div class="label">Status Log</div>
+        <div id="logValue" class="muted">Waiting for payment intent...</div>
+      </div>
+    </div>
+
+    <div class="modal" id="successModal">
+      <div class="modal-content">
+        <h3>Payment successful</h3>
+        <p>Your GGC payment has been confirmed.</p>
+        <button id="closeModalBtn">Close</button>
+      </div>
+    </div>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const params = new URLSearchParams(window.location.search);
+      const paymentId = params.get('paymentId');
+      const apiBase = params.get('apiBase') || 'https://api.grandgangstacity.com';
+      let returnUrl = params.get('returnUrl');
+
+      let provider = null;
+      let signer = null;
+      let walletAddress = null;
+      let intent = null;
+      let pollTimer = null;
+
+      function setStatus(text, type) {
+        const badge = $('statusBadge');
+        badge.textContent = text;
+        badge.className = `status ${type}`;
+      }
+
+      function logMessage(msg) {
+        $('logValue').textContent = msg;
+      }
+
+      function mapSubmitError(code, message) {
+        if (code === 'AMOUNT_TOO_LOW') {
+          return 'Payment amount is below the required total.';
+        }
+        if (code === 'TX_FAILED') {
+          return 'Transaction failed or was reverted. Check your token balance.';
+        }
+        if (code === 'TX_INVALID') {
+          return 'Transaction is not valid for this payment.';
+        }
+        if (code === 'PAYMENT_EXPIRED') {
+          return 'Payment expired. Please request a new payment.';
+        }
+        return message || 'Payment failed.';
+      }
+
+      function mapWalletError(error) {
+        if (!error) return 'Payment failed.';
+        const code = error.code || error?.error?.code;
+        if (code === 'ACTION_REJECTED') {
+          return 'Transaction rejected in wallet.';
+        }
+        if (code === 'INSUFFICIENT_FUNDS') {
+          return 'Insufficient funds for gas.';
+        }
+        return error?.shortMessage || error?.message || 'Payment failed.';
+      }
+
+      function formatDate(dateStr) {
+        const d = new Date(dateStr);
+        return Number.isNaN(d.getTime()) ? '-' : d.toLocaleString();
+      }
+
+      async function fetchIntent() {
+        if (!paymentId) {
+          setStatus('Missing paymentId', 'bad');
+          logMessage('No paymentId in URL.');
+          return;
+        }
+
+        $('paymentIdValue').textContent = paymentId;
+        logMessage('Fetching payment intent...');
+
+        const res = await fetch(`${apiBase}/api/v1/payments/intent/${paymentId}`);
+        const json = await res.json();
+
+        if (!res.ok || !json.success) {
+          setStatus('Invalid', 'bad');
+          logMessage(json?.error?.message || 'Failed to load payment intent.');
+          return;
+        }
+
+        intent = json.data;
+        if (!returnUrl && intent.returnUrl) {
+          returnUrl = intent.returnUrl;
+        }
+        $('amountValue').textContent = `${intent.amountTokens} ${intent.tokenSymbol}`;
+        $('expiresValue').textContent = formatDate(intent.expiresAt);
+        setStatus(intent.status, intent.status === 'PENDING' ? 'warn' : 'bad');
+        logMessage('Payment intent loaded.');
+
+        if (intent.status !== 'PENDING') {
+          $('payBtn').disabled = true;
+        }
+      }
+
+      async function ensureProvider() {
+        if (!window.ethereum) {
+          alert('MetaMask not detected. Please install/enable MetaMask.');
+          throw new Error('No wallet provider');
+        }
+        if (!provider) provider = new ethers.BrowserProvider(window.ethereum);
+        return provider;
+      }
+
+      async function getChainId() {
+        const p = await ensureProvider();
+        const chainIdHex = await p.send('eth_chainId', []);
+        return parseInt(chainIdHex, 16);
+      }
+
+      function updateNetworkDisplay(chainId, targetChainId) {
+        const label = chainId === targetChainId ? 'Network OK' : 'Wrong network';
+        $('networkValue').textContent = `Chain ID: ${chainId} (${label})`;
+        $('switchBtn').style.display = chainId === targetChainId ? 'none' : 'inline-flex';
+      }
+
+      function updatePayButton() {
+        const ready = intent && intent.status === 'PENDING' && walletAddress;
+        $('payBtn').disabled = !ready;
+      }
+
+      $('connectBtn').onclick = async () => {
+        try {
+          const p = await ensureProvider();
+          await p.send('eth_requestAccounts', []);
+          signer = await p.getSigner();
+          walletAddress = await signer.getAddress();
+          $('walletValue').textContent = walletAddress;
+
+          const chainId = await getChainId();
+          if (intent) updateNetworkDisplay(chainId, intent.chainId);
+          updatePayButton();
+        } catch (e) {
+          logMessage(e?.message || 'Failed to connect wallet.');
+        }
+      };
+
+      $('switchBtn').onclick = async () => {
+        try {
+          if (!intent) return;
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0x' + intent.chainId.toString(16) }],
+          });
+          const chainId = await getChainId();
+          updateNetworkDisplay(chainId, intent.chainId);
+        } catch (e) {
+          logMessage('Failed to switch network. Please switch in your wallet.');
+        }
+      };
+
+      async function submitTx(txHash) {
+        const res = await fetch(`${apiBase}/api/v1/payments/submit`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            paymentId,
+            userAddress: walletAddress,
+            txHash,
+          }),
+        });
+        const json = await res.json();
+        if (!res.ok || !json.success) {
+          const code = json?.error?.code;
+          const message = mapSubmitError(code, json?.error?.message);
+          const err = new Error(message);
+          err.code = code;
+          throw err;
+        }
+        return json.data;
+      }
+
+      async function pollStatus() {
+        if (pollTimer) clearInterval(pollTimer);
+        pollTimer = setInterval(async () => {
+          const res = await fetch(`${apiBase}/api/v1/payments/status/${paymentId}`);
+          const json = await res.json();
+          if (!res.ok || !json.success) return;
+          const status = json.data.status;
+          setStatus(status, status === 'PAID' ? 'ok' : status === 'PENDING' ? 'warn' : 'bad');
+          if (status === 'PAID') {
+            clearInterval(pollTimer);
+            $('successModal').style.display = 'flex';
+          }
+        }, 2500);
+      }
+
+      $('closeModalBtn').onclick = () => {
+        if (returnUrl) {
+          window.location.href = returnUrl;
+        } else {
+          window.close();
+        }
+      };
+
+      $('payBtn').onclick = async () => {
+        try {
+          if (!intent || !signer) return;
+          const chainId = await getChainId();
+          updateNetworkDisplay(chainId, intent.chainId);
+          if (chainId !== intent.chainId) {
+            logMessage('Wrong network. Switch to the required chain first.');
+            return;
+          }
+
+          const amountWei = ethers.parseUnits(intent.amountTokens, intent.tokenDecimals);
+          const contract = new ethers.Contract(
+            intent.tokenAddress,
+            ['function transfer(address to, uint256 value) returns (bool)'],
+            signer
+          );
+
+          logMessage('Sending transaction...');
+          const tx = await contract.transfer(intent.treasuryAddress, amountWei);
+          $('txValue').textContent = `Tx: ${tx.hash}`;
+
+          logMessage('Submitting payment for verification...');
+          await submitTx(tx.hash);
+          logMessage('Waiting for confirmations...');
+          pollStatus();
+        } catch (e) {
+          logMessage(mapWalletError(e));
+        }
+      };
+
+      window.addEventListener('DOMContentLoaded', async () => {
+        await fetchIntent();
+        if (intent) {
+          const chainId = await getChainId().catch(() => null);
+          if (chainId !== null) updateNetworkDisplay(chainId, intent.chainId);
+        }
+      });
+    </script>
+  </body>
+</html>
